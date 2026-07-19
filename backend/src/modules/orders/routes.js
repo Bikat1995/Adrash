@@ -105,4 +105,37 @@ router.post('/:id/dispute', async (req, res) => {
   }
 });
 
+router.post('/:id/rate', async (req, res) => {
+  const { score, comment } = req.body;
+  if (req.user.role !== 'vendor') return res.status(403).json({ error: 'Only vendors can rate orders' });
+
+  try {
+    // 1. Get the order to find the driver_id
+    const orderRes = await pool.query(`SELECT driver_id FROM orders WHERE id = $1 AND vendor_id = $2 AND status = 'delivered'`, [req.params.id, req.user.id]);
+    if (!orderRes.rows.length) return res.status(400).json({ error: 'Order not found or not delivered' });
+
+    const driverId = orderRes.rows[0].driver_id;
+
+    // 2. Insert the rating
+    await pool.query(
+      `INSERT INTO ratings (order_id, driver_id, vendor_id, score, comment) VALUES ($1, $2, $3, $4, $5)`,
+      [req.params.id, driverId, req.user.id, score, comment]
+    );
+
+    // 3. Update driver rating aggregate
+    const aggregate = await pool.query(`SELECT AVG(score) as avg_score, COUNT(*) as total_ratings FROM ratings WHERE driver_id = $1`, [driverId]);
+    const { avg_score, total_ratings } = aggregate.rows[0];
+
+    await pool.query(
+      `UPDATE driver_profiles SET rating = $1, total_deliveries = $2 WHERE user_id = $3`,
+      [avg_score, total_ratings, driverId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 module.exports = router;

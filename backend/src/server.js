@@ -37,6 +37,20 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('mockRedis', mockRedis);
 
+// Mock Phase 3 Automated Payout Job
+const simulateDailyPayouts = async () => {
+  console.log('[PAYOUT JOB] Running automated driver payouts...');
+  try {
+    const activeDrivers = await pool.query('SELECT user_id, rating, total_deliveries FROM driver_profiles WHERE total_deliveries > 0');
+    console.log(`[PAYOUT JOB] Processed payouts for ${activeDrivers.rowCount} drivers via Telebirr API mock.`);
+  } catch (err) {
+    console.error('[PAYOUT JOB] Error:', err);
+  }
+};
+// Run once on startup for demonstration, then every 24h
+simulateDailyPayouts();
+setInterval(simulateDailyPayouts, 24 * 60 * 60 * 1000);
+
 async function start() {
   try {
     await pool.query('SELECT 1'); // test DB connection
