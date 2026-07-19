@@ -91,4 +91,18 @@ router.post('/:id/cancel', async (req, res) => {
   }
 });
 
+router.post('/:id/dispute', async (req, res) => {
+  const { reason } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE orders SET status = 'disputed' WHERE id = $1`,
+      [req.params.id]
+    );
+    console.log(`[DISPUTE] Order ${req.params.id} disputed. Reason: ${reason}`);
+    res.json({ success: true, message: 'Dispute submitted for manual review' });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 module.exports = router;

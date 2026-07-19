@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Switch, Alert, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { io } from 'socket.io-client';
 import api from '../../services/api';
 import NeuCard from '../../components/NeuCard';
 import NeuButton from '../../components/NeuButton';
@@ -8,15 +9,40 @@ import NeuButton from '../../components/NeuButton';
 export default function DriverHomeScreen() {
   const [isOnline, setIsOnline] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    // Connect to websocket
+    const newSocket = io('http://localhost:3000');
+    setSocket(newSocket);
+
+    return () => newSocket.close();
+  }, []);
 
   useEffect(() => {
     let interval;
     if (isOnline) {
       fetchNearbyOrders();
-      interval = setInterval(fetchNearbyOrders, 8000);
+      // Emulate GPS pings every 5s using WebSocket
+      interval = setInterval(async () => {
+        const userData = await AsyncStorage.getItem('userData');
+        if (userData && socket) {
+          const user = JSON.parse(userData);
+          socket.emit('driver_ping', { driverId: user.id, lat: 9.03, lng: 38.74 });
+        }
+      }, 5000);
     }
     return () => clearInterval(interval);
-  }, [isOnline]);
+  }, [isOnline, socket]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('driver_location_update', (data) => {
+        // Just acknowledging the broadcast loopback
+        console.log('Location broadcast received:', data);
+      });
+    }
+  }, [socket]);
 
   const fetchNearbyOrders = async () => {
     try {
