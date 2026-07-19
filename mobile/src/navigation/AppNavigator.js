@@ -1,52 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Stub screens
 import VendorHomeScreen from '../screens/vendor/VendorHomeScreen';
 import DriverHomeScreen from '../screens/driver/DriverHomeScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
+import api from '../services/api';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-// Temporary mock auth state
-const useAuth = () => {
-  const [user, setUser] = useState({ role: 'vendor' }); // Change to 'driver' to test driver flow
-  const [loading, setLoading] = useState(false);
-  return { user, loading };
-};
 
 const VendorStack = () => (
   <Stack.Navigator>
-    <Stack.Screen name="VendorHome" component={VendorHomeScreen} options={{ title: 'Adrash Vendor' }} />
+    <Stack.Screen name="VendorHome" component={VendorHomeScreen} options={{ title: 'Adrash Vendor', headerStyle: { backgroundColor: '#E0E5EC' } }} />
   </Stack.Navigator>
 );
 
 const DriverStack = () => (
   <Stack.Navigator>
-    <Stack.Screen name="DriverHome" component={DriverHomeScreen} options={{ title: 'Adrash Driver' }} />
+    <Stack.Screen name="DriverHome" component={DriverHomeScreen} options={{ title: 'Adrash Driver', headerStyle: { backgroundColor: '#E0E5EC' } }} />
   </Stack.Navigator>
 );
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        const userData = await AsyncStorage.getItem('userData');
+        if (token && userData) {
+          // Verify token validity with backend if necessary, or just load user
+          setUser(JSON.parse(userData));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#E0E5EC' }}>
+        <ActivityIndicator size="large" color="#50C878" />
       </View>
     );
   }
 
   if (!user) {
-    // Return Auth Stack (Login/OTP screen)
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Login Screen</Text>
-      </View>
-    );
+    return <LoginScreen setAuth={setUser} />;
   }
 
   return user.role === 'vendor' ? <VendorStack /> : <DriverStack />;
