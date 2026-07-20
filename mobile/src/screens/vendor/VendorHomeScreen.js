@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
-import NeuCard from '../../components/NeuCard';
-import NeuButton from '../../components/NeuButton';
+import AppCard from '../../components/NeuCard';
+import AppButton from '../../components/NeuButton';
 
 export default function VendorHomeScreen() {
   const [description, setDescription] = useState('');
@@ -11,110 +11,166 @@ export default function VendorHomeScreen() {
   const [dropoff, setDropoff] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState(null);
-  const [disputeReason, setDisputeReason] = useState('');
 
-  const createOrder = async () => {
-    if (!description || !pickup || !dropoff) return Alert.alert('Error', 'Please fill all fields');
-    setLoading(true);
-    try {
-      const orderRes = await api.post('/orders', {
-        item_description: description,
-        pickup_lat: 9.03, // Mock location for Addis Ababa
-        pickup_lng: 38.74,
-        dropoff_lat: 9.01,
-        dropoff_lng: 38.75,
-      });
-      
-      const orderId = orderRes.data.id;
-      setActiveOrderId(orderId);
-
-      // Trigger Checkout
-      const checkoutRes = await api.post('/payments/checkout', {
-        order_id: orderId,
-        amount: 500, // 500 ETB
-      });
-
-      Alert.alert('Checkout Initiated', `Escrow payment started via Chapa. Follow link: ${checkoutRes.data.data.checkout_url}`);
-      
-      setDescription('');
-      setPickup('');
-      setDropoff('');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to create order');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fileDispute = async () => {
-    if (!activeOrderId || !disputeReason) return Alert.alert('Error', 'Please enter a dispute reason for the active order');
-    try {
-      await api.post(`/orders/${activeOrderId}/dispute`, { reason: disputeReason });
-      Alert.alert('Dispute Logged', 'Our team will review the log manually.');
-      setDisputeReason('');
-    } catch (err) {
-      Alert.alert('Error', 'Could not file dispute');
-    }
-  };
-
-  const logout = async () => {
-    await AsyncStorage.removeItem('userToken');
-    await AsyncStorage.removeItem('userData');
-    Alert.alert('Logged Out', 'Please restart the app to login again.');
-  };
+  const categories = [
+    { name: 'Engine', icon: '⚙️' },
+    { name: 'Tires', icon: '🛞' },
+    { name: 'Battery', icon: '🔋' },
+    { name: 'Brake', icon: '🛑' },
+    { name: 'Oil', icon: '🛢️' }
+  ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <NeuCard style={styles.card}>
-        <Text style={styles.title}>Request Delivery</Text>
-        
-        <TextInput style={styles.input} placeholder="Item Description (e.g. Toyota Brake Pads)" value={description} onChangeText={setDescription} />
-        <TextInput style={styles.input} placeholder="Pickup Location (Address/Pin)" value={pickup} onChangeText={setPickup} />
-        <TextInput style={styles.input} placeholder="Dropoff Location (Address/Pin)" value={dropoff} onChangeText={setDropoff} />
-        
-        <NeuButton title="Submit Request & Pay" primary onPress={createOrder} />
-      </NeuCard>
+    <View style={styles.container}>
+      {/* Header Area */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerLogo}>🛵 Adrash</Text>
+        </View>
+        <TextInput 
+          style={styles.searchBar} 
+          placeholder="🔍 Search parts, vendors..." 
+          placeholderTextColor="#666" 
+        />
+      </View>
 
-      {activeOrderId && (
-        <NeuCard style={[styles.card, { marginTop: 20 }]}>
-          <Text style={styles.title}>Active Order #{activeOrderId}</Text>
-          <Text style={{marginBottom: 10}}>If you face issues with this order, you can file a dispute.</Text>
-          <TextInput style={styles.input} placeholder="Dispute Reason" value={disputeReason} onChangeText={setDisputeReason} />
-          <NeuButton title="File Dispute" onPress={fileDispute} style={{ backgroundColor: '#FF6B6B' }} textStyle={{ color: 'white' }} />
-        </NeuCard>
-      )}
-      
-      <NeuButton title="Logout" onPress={logout} style={{ marginTop: 30 }} />
-    </ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        {/* Categories Row */}
+        <View style={styles.categoriesContainer}>
+          {categories.map((cat, idx) => (
+            <TouchableOpacity key={idx} style={styles.categoryItem}>
+              <View style={styles.categoryIconCircle}>
+                <Text style={styles.categoryIconText}>{cat.icon}</Text>
+              </View>
+              <Text style={styles.categoryName}>{cat.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Featured Vendor */}
+        <Text style={styles.sectionTitle}>Featured Vendor</Text>
+        <AppCard dashed style={styles.featuredCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={styles.thumbnailPlaceholder}></View>
+            <View style={{ marginLeft: 15, flex: 1 }}>
+              <Text style={styles.vendorName}>AutoParts Hub</Text>
+              <Text style={styles.vendorMeta}>⭐ 4.8 • Addis Ababa</Text>
+              <AppButton title="Order Now" style={styles.smallBtn} textStyle={styles.smallBtnText} />
+            </View>
+          </View>
+        </AppCard>
+
+        {/* Delivery Tracking Mock */}
+        <Text style={styles.sectionTitle}>Delivery Tracking</Text>
+        <AppCard style={styles.mapCard}>
+          <View style={styles.mapMock}>
+            <Text style={{color: '#C68A53', fontWeight: 'bold'}}>Addis Ababa</Text>
+            {/* Fake route line */}
+            <View style={styles.routeLine}></View>
+            <Text style={{fontSize: 24, alignSelf: 'flex-end'}}>🛵</Text>
+          </View>
+          <View style={styles.mapDetails}>
+            <View style={{flex: 1}}>
+              <Text style={{fontWeight: 'bold', color: '#1E3F20'}}>Order #1042</Text>
+              <Text style={{fontSize: 12, color: '#666'}}>Status: En Route</Text>
+            </View>
+            <Text style={{fontWeight: 'bold', color: '#B87333'}}>Est. 10 min</Text>
+          </View>
+          {/* Progress Bar */}
+          <View style={styles.progressBarBg}>
+            <View style={styles.progressBarFill}></View>
+          </View>
+        </AppCard>
+
+        {/* Create Order Form */}
+        <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Quick Request</Text>
+        <AppCard>
+          <TextInput style={styles.input} placeholder="Item Description" value={description} onChangeText={setDescription} />
+          <TextInput style={styles.input} placeholder="Pickup Location" value={pickup} onChangeText={setPickup} />
+          <TextInput style={styles.input} placeholder="Dropoff Location" value={dropoff} onChangeText={setDropoff} />
+          <AppButton title="Find Driver" primary />
+        </AppCard>
+
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: '#E0E5EC',
+  container: { flex: 1, backgroundColor: '#FDFBF7' },
+  header: {
+    backgroundColor: '#1E3F20',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  headerLogo: { color: '#DAA520', fontSize: 24, fontWeight: 'bold' },
+  searchBar: {
+    backgroundColor: '#FDFBF7',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    fontSize: 16,
+  },
+  scrollContent: { padding: 20, paddingBottom: 100 },
+  categoriesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 25,
+  },
+  categoryItem: { alignItems: 'center' },
+  categoryIconCircle: {
+    width: 60, height: 60,
+    borderRadius: 30,
+    backgroundColor: '#EAE5D9',
     alignItems: 'center',
-    paddingTop: 40,
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#C68A53',
+    marginBottom: 8,
   },
-  card: {
-    width: '100%',
-    padding: 20,
+  categoryIconText: { fontSize: 24 },
+  categoryName: { color: '#1E3F20', fontSize: 12, fontWeight: '600' },
+  sectionTitle: {
+    fontSize: 18, fontWeight: 'bold', color: '#1E3F20', marginBottom: 10,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#4B0082',
-    marginBottom: 20,
-    textAlign: 'center',
+  featuredCard: { marginBottom: 25 },
+  thumbnailPlaceholder: {
+    width: 80, height: 60,
+    backgroundColor: '#EAE5D9',
+    borderRadius: 8,
   },
+  vendorName: { fontSize: 16, fontWeight: 'bold', color: '#1E3F20' },
+  vendorMeta: { fontSize: 12, color: '#666', marginVertical: 4 },
+  smallBtn: { paddingVertical: 6, paddingHorizontal: 12, marginVertical: 0, marginTop: 5, alignSelf: 'flex-start' },
+  smallBtnText: { fontSize: 12 },
+  mapCard: { marginBottom: 25, padding: 0, overflow: 'hidden' },
+  mapMock: {
+    height: 150,
+    backgroundColor: '#F3E8D6',
+    padding: 15,
+    justifyContent: 'space-between',
+  },
+  routeLine: {
+    height: 3,
+    backgroundColor: '#1E3F20',
+    width: '60%',
+    alignSelf: 'center',
+    transform: [{ rotate: '15deg' }]
+  },
+  mapDetails: { flexDirection: 'row', padding: 15, alignItems: 'center' },
+  progressBarBg: { height: 4, backgroundColor: '#EAE5D9', marginHorizontal: 15, marginBottom: 15, borderRadius: 2 },
+  progressBarFill: { height: '100%', width: '60%', backgroundColor: '#B87333', borderRadius: 2 },
   input: {
-    backgroundColor: '#E0E5EC',
+    backgroundColor: '#FDFBF7',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ffffff50',
-    shadowColor: '#a3b1c6',
+    borderColor: '#EAE5D9',
   }
 });

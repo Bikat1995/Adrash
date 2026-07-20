@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 
-const NeuCard = ({ children, style }) => {
+const AppCard = ({ children, style, dashed }) => {
   return (
-    <View style={[styles.card, style]}>
+    <View style={[styles.card, dashed && styles.dashedCard, style]}>
       {children}
     </View>
   );
@@ -11,17 +11,23 @@ const NeuCard = ({ children, style }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#E0E5EC',
-    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 20,
-    shadowColor: '#a3b1c6',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#ffffff50',
+    borderColor: '#EAE5D9',
+  },
+  dashedCard: {
+    borderWidth: 2,
+    borderColor: '#C68A53', // Terracotta/Brown
+    borderStyle: 'dashed',
+    backgroundColor: '#FDFBF7', // Warm off-white
   }
 });
 
-export default NeuCard;
+export default AppCard;

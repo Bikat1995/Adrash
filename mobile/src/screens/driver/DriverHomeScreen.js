@@ -1,75 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Alert, FlatList, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
 import api from '../../services/api';
-import NeuCard from '../../components/NeuCard';
-import NeuButton from '../../components/NeuButton';
+import AppCard from '../../components/NeuCard';
+import AppButton from '../../components/NeuButton';
 
 export default function DriverHomeScreen() {
-  const [isOnline, setIsOnline] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [activeOrder, setActiveOrder] = useState(null);
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Connect to websocket
-    const newSocket = io('http://localhost:3000');
-    setSocket(newSocket);
-
-    return () => newSocket.close();
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (isOnline) {
-      fetchNearbyOrders();
-      // Emulate GPS pings every 5s using WebSocket
-      interval = setInterval(async () => {
-        const userData = await AsyncStorage.getItem('userData');
-        if (userData && socket) {
-          const user = JSON.parse(userData);
-          socket.emit('driver_ping', { driverId: user.id, lat: 9.03, lng: 38.74 });
-        }
-      }, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [isOnline, socket]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('driver_location_update', (data) => {
-        // Just acknowledging the broadcast loopback
-        console.log('Location broadcast received:', data);
+    let newSocket;
+    const setupSocket = async () => {
+      const token = await AsyncStorage.getItem('userToken');
+      newSocket = io('http://localhost:3000', {
+        auth: { token }
       });
-    }
-  }, [socket]);
+
+      newSocket.on('connect', () => {
+        console.log('Driver connected to WebSocket');
+        // Emit mock location immediately
+        newSocket.emit('driver_ping', { lat: 9.02, lng: 38.74 });
+      });
+
+      newSocket.on('new_order', (order) => {
+        setOrders(prev => [order, ...prev]);
+      });
+
+      setSocket(newSocket);
+    };
+
+    setupSocket();
+    fetchNearbyOrders();
+
+    const interval = setInterval(() => {
+      if (newSocket && newSocket.connected) {
+        newSocket.emit('driver_ping', { lat: 9.02 + (Math.random()*0.01), lng: 38.74 });
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      if (newSocket) newSocket.disconnect();
+    };
+  }, []);
 
   const fetchNearbyOrders = async () => {
     try {
       const res = await api.get('/orders/nearby');
       setOrders(res.data.orders);
     } catch (err) {
-      console.log('Error fetching orders', err);
-    }
-  };
-
-  const toggleOnline = async (val) => {
-    try {
-      const endpoint = val ? '/driver/online' : '/driver/offline';
-      await api.post(endpoint);
-      setIsOnline(val);
-    } catch (err) {
-      Alert.alert('Error', 'Could not update status');
+      console.error(err);
     }
   };
 
   const acceptOrder = async (id) => {
     try {
       await api.post(`/orders/${id}/accept`);
-      Alert.alert('Success', 'Order accepted');
-      fetchNearbyOrders();
+      Alert.alert('Success', 'Order accepted!');
+      const order = orders.find(o => o.id === id);
+      setActiveOrder({ ...order, status: 'matched' });
     } catch (err) {
-      Alert.alert('Error', 'Failed to accept order. It might be taken.');
+      Alert.alert('Error', 'Could not accept order (maybe taken)');
+    }
+  };
+
+  const updateStatus = async (status) => {
+    if (!activeOrder) return;
+    try {
+      await api.post(`/orders/${activeOrder.id}/status`, { status });
+      if (status === 'delivered') {
+        Alert.alert('Success', 'Order delivered!');
+        setActiveOrder(null);
+        fetchNearbyOrders();
+      } else {
+        setActiveOrder({ ...activeOrder, status });
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update status');
     }
   };
 
@@ -81,70 +91,79 @@ export default function DriverHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <NeuCard style={styles.statusCard}>
-        <Text style={styles.title}>Driver Status</Text>
-        <View style={styles.toggleContainer}>
-          <Text style={styles.statusText}>{isOnline ? 'Online - Receiving Orders' : 'Offline'}</Text>
-          <Switch value={isOnline} onValueChange={toggleOnline} trackColor={{ true: '#50C878' }} />
-        </View>
-      </NeuCard>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Driver Dashboard</Text>
+        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+          <Text style={{color: '#FDFBF7'}}>Logout</Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.sectionTitle}>Nearby Orders</Text>
-      <FlatList
-        data={orders}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <NeuCard style={styles.orderCard}>
-            <Text style={{ fontWeight: 'bold' }}>{item.item_description}</Text>
-            <Text style={{ color: '#666', marginTop: 5 }}>Pickup: {item.pickup_lat}, {item.pickup_lng}</Text>
-            <NeuButton title="Accept Order" primary style={{ marginTop: 15 }} onPress={() => acceptOrder(item.id)} />
-          </NeuCard>
+      <View style={{ padding: 20, flex: 1 }}>
+        {activeOrder ? (
+          <AppCard dashed style={styles.activeCard}>
+            <Text style={styles.sectionTitle}>Current Delivery</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15}}>
+              <Text style={{fontWeight: 'bold', color: '#1E3F20'}}>Order #{activeOrder.id}</Text>
+              <Text style={{color: '#C68A53', fontWeight: 'bold'}}>{activeOrder.status.toUpperCase()}</Text>
+            </View>
+            <Text style={{marginBottom: 10}}>{activeOrder.item_description}</Text>
+            
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 20}}>
+              {activeOrder.status === 'matched' && (
+                <AppButton title="Mark Picked Up" primary onPress={() => updateStatus('picked_up')} style={{flex: 1}} />
+              )}
+              {activeOrder.status === 'picked_up' && (
+                <AppButton title="Mark Delivered" primary onPress={() => updateStatus('delivered')} style={{flex: 1}} />
+              )}
+            </View>
+          </AppCard>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Nearby Requests</Text>
+            <FlatList
+              data={orders}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <AppCard style={{marginBottom: 15}}>
+                  <Text style={{fontWeight: 'bold', color: '#1E3F20', fontSize: 16}}>Order #{item.id}</Text>
+                  <Text style={{marginVertical: 8, color: '#666'}}>{item.item_description}</Text>
+                  <AppButton title="Accept Delivery" primary onPress={() => acceptOrder(item.id)} />
+                </AppCard>
+              )}
+              ListEmptyComponent={<Text style={{color: '#666', textAlign: 'center', marginTop: 20}}>No nearby orders.</Text>}
+            />
+          </>
         )}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20 }}>No active orders nearby.</Text>}
-        style={{ width: '100%' }}
-      />
-      
-      <NeuButton title="Logout" onPress={logout} style={{ marginTop: 10 }} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: '#E0E5EC',
-    alignItems: 'center',
-  },
-  statusCard: {
-    width: '100%',
-    marginBottom: 20,
-    marginTop: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4B0082',
-    marginBottom: 15,
-  },
-  toggleContainer: {
+  container: { flex: 1, backgroundColor: '#FDFBF7' },
+  header: {
+    backgroundColor: '#1E3F20',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
-  statusText: {
-    fontSize: 16,
-    color: '#333',
+  headerTitle: { color: '#DAA520', fontSize: 20, fontWeight: 'bold' },
+  logoutBtn: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#C68A53',
+    borderRadius: 8,
   },
   sectionTitle: {
-    alignSelf: 'flex-start',
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4B0082',
-    marginBottom: 10,
+    fontSize: 18, fontWeight: 'bold', color: '#1E3F20', marginBottom: 15,
   },
-  orderCard: {
-    marginBottom: 15,
-    padding: 15,
+  activeCard: {
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
   }
 });

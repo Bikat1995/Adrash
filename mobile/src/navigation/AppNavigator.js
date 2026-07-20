@@ -1,24 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, ActivityIndicator, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import VendorHomeScreen from '../screens/vendor/VendorHomeScreen';
 import DriverHomeScreen from '../screens/driver/DriverHomeScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
-import api from '../services/api';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-const VendorStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen name="VendorHome" component={VendorHomeScreen} options={{ title: 'Adrash Vendor', headerStyle: { backgroundColor: '#E0E5EC' } }} />
-  </Stack.Navigator>
+// Placeholder for other tabs
+const PlaceholderScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FDFBF7' }}>
+    <Text style={{ color: '#1E3F20', fontSize: 18, fontWeight: 'bold' }}>Coming Soon</Text>
+  </View>
+);
+
+const VendorTabs = () => (
+  <Tab.Navigator
+    screenOptions={{
+      headerShown: false,
+      tabBarStyle: {
+        backgroundColor: '#1E3F20', // Deep Forest Green
+        borderTopWidth: 0,
+        height: 60,
+        paddingBottom: 10,
+        paddingTop: 10,
+      },
+      tabBarActiveTintColor: '#DAA520', // Warm Gold
+      tabBarInactiveTintColor: '#FDFBF7', // Warm Off-White
+    }}
+  >
+    <Tab.Screen name="Home" component={VendorHomeScreen} options={{ tabBarIcon: () => <Text style={{fontSize: 20}}>🏠</Text> }} />
+    <Tab.Screen name="Search" component={PlaceholderScreen} options={{ tabBarIcon: () => <Text style={{fontSize: 20}}>🔍</Text> }} />
+    <Tab.Screen name="Orders" component={PlaceholderScreen} options={{ tabBarIcon: () => <Text style={{fontSize: 20}}>🛍️</Text> }} />
+    <Tab.Screen name="Messages" component={PlaceholderScreen} options={{ tabBarIcon: () => <Text style={{fontSize: 20}}>💬</Text> }} />
+    <Tab.Screen name="Profile" component={PlaceholderScreen} options={{ tabBarIcon: () => <Text style={{fontSize: 20}}>👤</Text> }} />
+  </Tab.Navigator>
 );
 
 const DriverStack = () => (
   <Stack.Navigator>
-    <Stack.Screen name="DriverHome" component={DriverHomeScreen} options={{ title: 'Adrash Driver', headerStyle: { backgroundColor: '#E0E5EC' } }} />
+    <Stack.Screen name="DriverHome" component={DriverHomeScreen} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 
@@ -32,7 +57,6 @@ export default function AppNavigator() {
         const token = await AsyncStorage.getItem('userToken');
         const userData = await AsyncStorage.getItem('userData');
         if (token && userData) {
-          // Verify token validity with backend if necessary, or just load user
           setUser(JSON.parse(userData));
         }
       } catch (e) {
@@ -46,8 +70,8 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#E0E5EC' }}>
-        <ActivityIndicator size="large" color="#50C878" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FDFBF7' }}>
+        <ActivityIndicator size="large" color="#1E3F20" />
       </View>
     );
   }
@@ -56,5 +80,5 @@ export default function AppNavigator() {
     return <LoginScreen setAuth={setUser} />;
   }
 
-  return user.role === 'vendor' ? <VendorStack /> : <DriverStack />;
+  return user.role === 'vendor' ? <VendorTabs /> : <DriverStack />;
 }

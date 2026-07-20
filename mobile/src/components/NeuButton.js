@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
-const NeuButton = ({ onPress, title, style, textStyle, primary }) => {
+const AppButton = ({ onPress, title, style, textStyle, primary }) => {
   return (
     <TouchableOpacity 
       style={[
@@ -10,7 +10,7 @@ const NeuButton = ({ onPress, title, style, textStyle, primary }) => {
         style
       ]} 
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
       <Text style={[
         styles.text, 
@@ -23,27 +23,19 @@ const NeuButton = ({ onPress, title, style, textStyle, primary }) => {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#E0E5EC',
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    shadowColor: '#a3b1c6',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#ffffff50',
+    backgroundColor: '#EAE5D9', // Light gray/gold tint
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     alignItems: 'center',
     marginVertical: 10,
   },
   primaryButton: {
-    backgroundColor: '#50C878', // Emerald Green from spec
-    shadowColor: '#3da561',
+    backgroundColor: '#1E3F20', // Deep Forest Green
   },
   text: {
-    color: '#4B0082', // Deep Violet from spec
-    fontWeight: 'bold',
+    color: '#1E3F20',
+    fontWeight: '600',
     fontSize: 16,
   },
   primaryText: {
@@ -51,4 +43,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default NeuButton;
+export default AppButton;

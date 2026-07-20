@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
-import NeuCard from '../../components/NeuCard';
-import NeuButton from '../../components/NeuButton';
+import AppCard from '../../components/NeuCard';
+import AppButton from '../../components/NeuButton';
 
 export default function LoginScreen({ setAuth }) {
   const [phone, setPhone] = useState('');
@@ -13,20 +13,20 @@ export default function LoginScreen({ setAuth }) {
   const [loading, setLoading] = useState(false);
 
   const requestOtp = async () => {
-    if (!phone) return Alert.alert('Error', 'Please enter your phone number');
+    if (phone.length < 9) return Alert.alert('Invalid Phone');
     setLoading(true);
     try {
       await api.post('/auth/otp/request', { phone, role });
       setStep(2);
     } catch (err) {
-      Alert.alert('Error', 'Failed to request OTP');
+      Alert.alert('Error', 'Could not send OTP');
     } finally {
       setLoading(false);
     }
   };
 
   const verifyOtp = async () => {
-    if (!otp) return Alert.alert('Error', 'Please enter the OTP');
+    if (otp.length < 4) return Alert.alert('Invalid OTP');
     setLoading(true);
     try {
       const res = await api.post('/auth/otp/verify', { phone, otp, role });
@@ -42,51 +42,52 @@ export default function LoginScreen({ setAuth }) {
 
   return (
     <View style={styles.container}>
-      <NeuCard style={styles.card}>
-        <Text style={styles.title}>Welcome to Adrash</Text>
+      <Text style={styles.headerLogo}>🛵 Adrash</Text>
+      <Text style={styles.subtitle}>Fast & Reliable Spare-parts Delivery</Text>
+      
+      <AppCard style={styles.card}>
+        <Text style={styles.title}>{step === 1 ? 'Welcome Back' : 'Enter OTP'}</Text>
         
         {step === 1 ? (
           <>
             <View style={styles.roleContainer}>
-              <NeuButton 
-                title="Vendor" 
-                primary={role === 'vendor'} 
-                onPress={() => setRole('vendor')} 
-                style={styles.roleBtn} 
-              />
-              <NeuButton 
-                title="Driver" 
-                primary={role === 'driver'} 
-                onPress={() => setRole('driver')} 
-                style={styles.roleBtn} 
-              />
+              <TouchableOpacity 
+                style={[styles.roleTab, role === 'vendor' && styles.roleTabActive]} 
+                onPress={() => setRole('vendor')}>
+                <Text style={[styles.roleText, role === 'vendor' && styles.roleTextActive]}>Vendor</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.roleTab, role === 'driver' && styles.roleTabActive]} 
+                onPress={() => setRole('driver')}>
+                <Text style={[styles.roleText, role === 'driver' && styles.roleTextActive]}>Driver</Text>
+              </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Phone Number (+251...)"
+            <TextInput 
+              style={styles.input} 
+              placeholder="Phone Number (e.g. 0911...)" 
+              keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
-              keyboardType="phone-pad"
             />
-            <NeuButton title="Request OTP" primary onPress={requestOtp} />
+            <AppButton title={loading ? "Sending..." : "Send OTP"} primary onPress={requestOtp} />
           </>
         ) : (
           <>
-            <Text style={styles.subtitle}>Enter the code sent to {phone}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="4-digit OTP"
+            <TextInput 
+              style={styles.input} 
+              placeholder="Enter 4-digit OTP" 
+              keyboardType="number-pad"
               value={otp}
               onChangeText={setOtp}
-              keyboardType="number-pad"
-              maxLength={4}
             />
-            <NeuButton title="Verify & Login" primary onPress={verifyOtp} />
-            <NeuButton title="Back" onPress={() => setStep(1)} />
+            <AppButton title={loading ? "Verifying..." : "Login"} primary onPress={verifyOtp} />
+            <TouchableOpacity onPress={() => setStep(1)} style={{marginTop: 15, alignItems: 'center'}}>
+              <Text style={{color: '#B87333', fontWeight: 'bold'}}>Change Phone Number</Text>
+            </TouchableOpacity>
           </>
         )}
-      </NeuCard>
+      </AppCard>
     </View>
   );
 }
@@ -94,43 +95,67 @@ export default function LoginScreen({ setAuth }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E0E5EC',
-    justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#1E3F20', // Deep Forest Green background for auth
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  card: {
-    padding: 30,
-  },
-  title: {
-    fontSize: 24,
+  headerLogo: {
+    color: '#DAA520', // Warm Gold
+    fontSize: 42,
     fontWeight: 'bold',
-    color: '#4B0082',
-    textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   subtitle: {
+    color: '#FDFBF7',
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    marginBottom: 40,
+  },
+  card: {
+    width: '100%',
+    padding: 25,
+    backgroundColor: '#FDFBF7',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E3F20',
     marginBottom: 20,
+    textAlign: 'center',
   },
   roleContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 20,
+    borderRadius: 10,
+    backgroundColor: '#EAE5D9',
+    padding: 4,
   },
-  roleBtn: {
+  roleTab: {
     flex: 1,
-    marginHorizontal: 5,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  roleTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  roleText: {
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  roleTextActive: {
+    color: '#1E3F20',
   },
   input: {
-    backgroundColor: '#E0E5EC',
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     padding: 15,
-    marginBottom: 20,
+    marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ffffff50',
-    shadowColor: '#a3b1c6',
-    shadowOffset: { width: inset=true, height: inset=true },
+    borderColor: '#EAE5D9',
   }
 });
